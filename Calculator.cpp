@@ -1,14 +1,16 @@
 #include <assert.h>
+#include <math.h>
+#include <string.h>
 #include "Calculator.h"
 #include "FileOperations.h"
 
-#define IS_CALCULATOR_ERROR()                       \
-    do                                              \
-    {                                               \
+#define IS_CALCULATOR_ERROR()                        \
+    do                                               \
+    {                                                \
         if (*calculatorError != CALCULATOR_NO_ERROR) \
-        {                                           \
-            return nullptr;                         \
-        }                                           \
+        {                                            \
+            return nullptr;                          \
+        }                                            \
     } while(0)
 
 #define ASSERT_OK()                         \
@@ -19,11 +21,13 @@
         assert(calculatorError != nullptr); \
     } while(0)
 
-static const char* GetG(const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetE(const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetT(const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetP(const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetN(const char *s, double *val, CalculatorErrorCode *calculatorError);
+static const char* GetBegin      (const char *s, double *val, CalculatorErrorCode *calculatorError);
+static const char* GetAddOrSub   (const char *s, double *val, CalculatorErrorCode *calculatorError);
+static const char* GetMulOrDiv   (const char *s, double *val, CalculatorErrorCode *calculatorError);
+static const char* GetDegree     (const char *s, double *val, CalculatorErrorCode *calculatorError);
+static const char* GetSinOrCos   (const char *s, double *val, CalculatorErrorCode *calculatorError);
+static const char* GetParenthesis(const char *s, double *val, CalculatorErrorCode *calculatorError);
+static const char* GetNumber     (const char *s, double *val, CalculatorErrorCode *calculatorError);
 
 static const char* Require(const char *s,const char symbol, CalculatorErrorCode *calculatorError)
 {
@@ -36,11 +40,11 @@ static const char* Require(const char *s,const char symbol, CalculatorErrorCode 
     return s;
 }
 
-static const char* GetG(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static const char* GetBegin(const char *s, double *val, CalculatorErrorCode *calculatorError)
 {
     ASSERT_OK();
 
-    s = GetE(s, val, calculatorError);
+    s = GetAddOrSub(s, val, calculatorError);
     IS_CALCULATOR_ERROR();
 
     s = Require(s, '$', calculatorError);
@@ -48,11 +52,11 @@ static const char* GetG(const char *s, double *val, CalculatorErrorCode *calcula
     return s;
 }
 
-static const char* GetE(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static const char* GetAddOrSub(const char *s, double *val, CalculatorErrorCode *calculatorError)
 {
     ASSERT_OK();
 
-    s = GetT(s, val, calculatorError);
+    s = GetMulOrDiv(s, val, calculatorError);
     IS_CALCULATOR_ERROR();
 
     while (*s == '+' || *s == '-')
@@ -60,7 +64,7 @@ static const char* GetE(const char *s, double *val, CalculatorErrorCode *calcula
         char op = *s;
         s++;
         double val2 = 0;
-        s = GetT(s, &val2, calculatorError);
+        s = GetMulOrDiv(s, &val2, calculatorError);
         IS_CALCULATOR_ERROR();
         if (op == '+') *val += val2;
         else           *val -= val2;
@@ -69,11 +73,11 @@ static const char* GetE(const char *s, double *val, CalculatorErrorCode *calcula
     return s;
 }
 
-static const char* GetT(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static const char* GetMulOrDiv(const char *s, double *val, CalculatorErrorCode *calculatorError)
 {
     ASSERT_OK();
 
-    s = GetP(s, val, calculatorError);
+    s = GetDegree(s, val, calculatorError);
     IS_CALCULATOR_ERROR();
 
     while (*s == '*' || *s == '/')
@@ -81,7 +85,7 @@ static const char* GetT(const char *s, double *val, CalculatorErrorCode *calcula
         char op = *s;
         s++;
         double val2 = 0;
-        s = GetP(s, &val2, calculatorError);
+        s = GetDegree(s, &val2, calculatorError);
         IS_CALCULATOR_ERROR();
         if (op == '*') *val *= val2;
         else           *val /= val2;
@@ -90,7 +94,46 @@ static const char* GetT(const char *s, double *val, CalculatorErrorCode *calcula
     return s;
 }
 
-static const char* GetP(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static const char* GetDegree(const char *s, double *val, CalculatorErrorCode *calculatorError)
+{
+    ASSERT_OK();
+
+    s = GetSinOrCos(s, val, calculatorError);
+
+    while (*s == '^')
+    {
+        double val2 = 0;
+        s++;
+        s = GetSinOrCos(s, &val2, calculatorError);
+        IS_CALCULATOR_ERROR();
+        *val = pow(*val, val2);
+    }
+
+    return s;
+}
+
+static const char* GetSinOrCos(const char *s, double *val, CalculatorErrorCode *calculatorError)
+{
+    ASSERT_OK();
+    if (strncmp("sin", s, 3) == 0 || strncmp("cos", s, 3) == 0)
+    {
+        char op[3] = {};
+        strncpy(op, s, 3);
+        double val2 = 0;
+        s = s + 3;
+        s = GetParenthesis(s, &val2, calculatorError);
+        if (strcmp("sin", op) == 0) { *val = sin(val2); }
+        else                        { *val = cos(val2); }
+    }
+    else
+    {
+        s = GetParenthesis(s, val, calculatorError);
+    }
+
+    return s;
+}
+
+static const char* GetParenthesis(const char *s, double *val, CalculatorErrorCode *calculatorError)
 {
     ASSERT_OK();
 
@@ -98,20 +141,20 @@ static const char* GetP(const char *s, double *val, CalculatorErrorCode *calcula
     {
         s++;
         *val = 0;
-        s = GetE(s, val, calculatorError);
+        s = GetAddOrSub(s, val, calculatorError);
         IS_CALCULATOR_ERROR();
         s = Require(s, ')', calculatorError);
         return s;
     }
     else
     {
-        s = GetN(s, val, calculatorError);
+        s = GetNumber(s, val, calculatorError);
         IS_CALCULATOR_ERROR();
         return s;
     }
 }
 
-static const char* GetN(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static const char* GetNumber(const char *s, double *val, CalculatorErrorCode *calculatorError)
 {
     ASSERT_OK();
 
@@ -119,7 +162,7 @@ static const char* GetN(const char *s, double *val, CalculatorErrorCode *calcula
     const char *oldS = s;
     while ('0' <= *s && *s <= '9')
     {
-        *val += *val * 10 + (*s - '0');
+        *val = *val * 10 + (*s - '0');
         s++;
     }
     if (oldS == s) *calculatorError = CALCULATOR_SYNTAX_ERROR;
@@ -142,7 +185,7 @@ double CalculatExpression(const char *nameFinput, CalculatorErrorCode *calculato
 
     const char *s = str;
     double val = 0;
-    s = GetG(s, &val, calculatorError);
+    s = GetBegin(s, &val, calculatorError);
 
     free(str);
     fclose(finput);
