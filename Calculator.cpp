@@ -2,192 +2,173 @@
 #include <math.h>
 #include <string.h>
 #include "Calculator.h"
-#include "FileOperations.h"
 
-#define IS_CALCULATOR_ERROR()                        \
-    do                                               \
-    {                                                \
-        if (*calculatorError != CALCULATOR_NO_ERROR) \
-        {                                            \
-            return nullptr;                          \
-        }                                            \
+#define IS_CALCULATOR_ERROR()                               \
+    do                                                      \
+    {                                                       \
+        if (parser->calculatorError != CALCULATOR_NO_ERROR) \
+        {                                                   \
+            return 0;                                       \
+        }                                                   \
     } while(0)
 
-#define ASSERT_OK()                         \
-    do                                      \
-    {                                       \
-        assert(s               != nullptr); \
-        assert(val             != nullptr); \
-        assert(calculatorError != nullptr); \
-    } while(0)
+static double GetG    (Parser *parser);
+static double GetE    (Parser *parser);
+static double GetT    (Parser *parser);
+static double GetPower(Parser *parser);
+static double GetUnary(Parser *parser);
+static double GetP    (Parser *parser);
+static double GetN    (Parser *parser);
 
-static const char* GetBegin      (const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetAddOrSub   (const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetMulOrDiv   (const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetDegree     (const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetSinOrCos   (const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetParenthesis(const char *s, double *val, CalculatorErrorCode *calculatorError);
-static const char* GetNumber     (const char *s, double *val, CalculatorErrorCode *calculatorError);
+const int NUMBER_UNARY_OPERATIONS = 2;
 
-static const char* Require(const char *s,const char symbol, CalculatorErrorCode *calculatorError)
+UnaryOperation unaryOperation[NUMBER_UNARY_OPERATIONS] = {{ "sin", 3, sin},
+                                                          { "cos", 3, cos}};
+
+static void Require(Parser *parser, const char symbol)
 {
-    assert(s               != nullptr);
-    assert(calculatorError != nullptr);
+    assert(parser != nullptr);
 
-    if (*s == symbol) s++;
-    else *calculatorError = CALCULATOR_SYNTAX_ERROR;
-
-    return s;
+    if (*(parser->str + parser->curOffset) == symbol) parser->curOffset++;
+    else parser->calculatorError = CALCULATOR_SYNTAX_ERROR;
 }
 
-static const char* GetBegin(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static double GetG(Parser *parser)
 {
-    ASSERT_OK();
+    assert(parser != nullptr);
 
-    s = GetAddOrSub(s, val, calculatorError);
+    double val = GetE(parser);
     IS_CALCULATOR_ERROR();
 
-    s = Require(s, '$', calculatorError);
+    Require(parser, '$');
 
-    return s;
+    return val;
 }
 
-static const char* GetAddOrSub(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static double GetE(Parser *parser)
 {
-    ASSERT_OK();
+    assert(parser != nullptr);
 
-    s = GetMulOrDiv(s, val, calculatorError);
+    double val = GetT(parser);
     IS_CALCULATOR_ERROR();
 
-    while (*s == '+' || *s == '-')
+    while (*(parser->str + parser->curOffset) == '+' || *(parser->str + parser->curOffset) == '-')
     {
-        char op = *s;
-        s++;
-        double val2 = 0;
-        s = GetMulOrDiv(s, &val2, calculatorError);
+        char op = *(parser->str + parser->curOffset);
+        parser->curOffset++;
+        double val2 = GetT(parser);
         IS_CALCULATOR_ERROR();
-        if (op == '+') *val += val2;
-        else           *val -= val2;
+        if (op == '+') val += val2;
+        else           val -= val2;
     }
 
-    return s;
+    return val;
 }
 
-static const char* GetMulOrDiv(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static double GetT(Parser *parser)
 {
-    ASSERT_OK();
+    assert(parser != nullptr);
 
-    s = GetDegree(s, val, calculatorError);
+    double val = GetPower(parser);
     IS_CALCULATOR_ERROR();
 
-    while (*s == '*' || *s == '/')
+    while (*(parser->str + parser->curOffset) == '*' || *(parser->str + parser->curOffset) == '/')
     {
-        char op = *s;
-        s++;
-        double val2 = 0;
-        s = GetDegree(s, &val2, calculatorError);
+        char op = *(parser->str + parser->curOffset);
+        parser->curOffset++;
+        double val2 = GetPower(parser);
         IS_CALCULATOR_ERROR();
-        if (op == '*') *val *= val2;
-        else           *val /= val2;
+        if (op == '*') val *= val2;
+        else           val /= val2;
     }
 
-    return s;
+    return val;
 }
 
-static const char* GetDegree(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static double GetPower(Parser *parser)
 {
-    ASSERT_OK();
+    assert(parser != nullptr);
 
-    s = GetSinOrCos(s, val, calculatorError);
+    double val = GetP(parser);
 
-    while (*s == '^')
+    while (*(parser->str + parser->curOffset) == '^')
     {
-        double val2 = 0;
-        s++;
-        s = GetSinOrCos(s, &val2, calculatorError);
+        parser->curOffset++;
+        double val2 = GetP(parser);
         IS_CALCULATOR_ERROR();
-        *val = pow(*val, val2);
+        val = pow(val, val2);
     }
-
-    return s;
 }
 
-static const char* GetSinOrCos(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static double GetP(Parser *parser)
 {
-    ASSERT_OK();
-    if (strncmp("sin", s, 3) == 0 || strncmp("cos", s, 3) == 0)
+    assert(parser != nullptr);
+
+    double val = 0;
+
+    if (*(parser->str + parser->curOffset) == '(')
     {
-        char op[3] = {};
-        strncpy(op, s, 3);
-        double val2 = 0;
-        s = s + 3;
-        s = GetParenthesis(s, &val2, calculatorError);
-        if (strcmp("sin", op) == 0) { *val = sin(val2); }
-        else                        { *val = cos(val2); }
+        parser->curOffset++;
+        val = GetE(parser);
+        IS_CALCULATOR_ERROR();
+        Require(parser, ')');
     }
     else
     {
-        s = GetParenthesis(s, val, calculatorError);
+        size_t curOffset = parser->curOffset;
+        val = GetUnary(parser);
+        if (curOffset == parser->curOffset) { val = GetN(parser); }
+        IS_CALCULATOR_ERROR();
     }
 
-    return s;
+    return val;
 }
 
-static const char* GetParenthesis(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static double GetUnary(Parser *parser)
 {
-    ASSERT_OK();
+    assert(parser != nullptr);
 
-    if (*s == '(')
+    double val = 0;
+
+    for (int i = 0; i < NUMBER_UNARY_OPERATIONS; i++)
     {
-        s++;
-        *val = 0;
-        s = GetAddOrSub(s, val, calculatorError);
-        IS_CALCULATOR_ERROR();
-        s = Require(s, ')', calculatorError);
-        return s;
+        if (strncmp(unaryOperation[i].str, (parser->str + parser->curOffset), unaryOperation[i].strSize) == 0)
+        {
+            char op[unaryOperation[i].strSize] = {};
+            strncpy(op, parser->str + parser->curOffset, unaryOperation[i].strSize);
+            parser->curOffset += unaryOperation[i].strSize;
+            double val2 = GetP(parser);
+            if (strcmp(unaryOperation[i].str, op) == 0) { val = unaryOperation[i].operation(val2); }
+            else                                        { val = unaryOperation[i].operation(val2); }
+        }
     }
-    else
-    {
-        s = GetNumber(s, val, calculatorError);
-        IS_CALCULATOR_ERROR();
-        return s;
-    }
+
+    return val;
 }
 
-static const char* GetNumber(const char *s, double *val, CalculatorErrorCode *calculatorError)
+static double GetN(Parser *parser)
 {
-    ASSERT_OK();
+    assert(parser != nullptr);
 
-    *val = 0;
-    const char *oldS = s;
-    while ('0' <= *s && *s <= '9')
+    double val = 0;
+    const char *oldS = parser->str;
+    while (*(parser->str + parser->curOffset) >= '0' && '9' >= *(parser->str + parser->curOffset))
     {
-        *val = *val * 10 + (*s - '0');
-        s++;
+        val = val * 10 + (*(parser->str + parser->curOffset) - '0');
+        parser->curOffset++;
     }
-    if (oldS == s) *calculatorError = CALCULATOR_SYNTAX_ERROR;
-    return s;
+    if (oldS == (parser->str + parser->curOffset)) parser->calculatorError = CALCULATOR_SYNTAX_ERROR;
+
+    return val;
 }
 
 #undef IS_CALCULATOR_ERROR
-#undef ASSERT_OK
 
-double CalculatExpression(const char *nameFinput, CalculatorErrorCode *calculatorError)
+double CalculateExpression(Parser *parser)
 {
-    assert(nameFinput      != nullptr);
-    assert(calculatorError != nullptr);
+    assert(parser != nullptr);
 
-    FILE *finput = fopen(nameFinput, "r");
+    double val = GetG(parser);
 
-    int numberBytesSize = GetFileSize(finput);
-    char *str = (char*)calloc(numberBytesSize + 1, sizeof(char));
-    str = (char*)ReadFile(finput, str, numberBytesSize);
-
-    const char *s = str;
-    double val = 0;
-    s = GetBegin(s, &val, calculatorError);
-
-    free(str);
-    fclose(finput);
     return val;
 }

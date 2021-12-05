@@ -1,19 +1,31 @@
 #include "Calculator.h"
+#include "FileOperations.h"
 
-const char *nameFinput = "data.txt";
+const char *NAME_INPUT_FILE = "data.txt";
 
 int main()
 {
-    CalculatorErrorCode calculatorError = CALCULATOR_NO_ERROR;
-    double val = CalculatExpression(nameFinput, &calculatorError);
-    if (calculatorError != CALCULATOR_NO_ERROR)
+    Parser parser = {};
+
+    FILE *finput = fopen(NAME_INPUT_FILE, "r");
+
+    int numberBytesSize = GetFileSize(finput);
+    parser.str = (char*)calloc(numberBytesSize + 1, sizeof(char));
+    parser.str = (char*)ReadFile(finput, parser.str, numberBytesSize);
+
+    parser.calculatorError = CALCULATOR_NO_ERROR;
+
+    double val = CalculateExpression(&parser);
+    if (parser.calculatorError != CALCULATOR_NO_ERROR)
     {
-        printf("CALCULATOR_SYNTAX_ERROR!\n");
+        printf("%g\n", val);
     }
     else
     {
         printf("%g\n", val);
     }
 
+    free(parser.str);
+    fclose(finput);
     return 0;
 }

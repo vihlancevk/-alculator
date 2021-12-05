@@ -10,6 +10,20 @@ enum CalculatorErrorCode
     CALCULATOR_SYNTAX_ERROR
 };
 
-double CalculatExpression(const char *nameFinput, CalculatorErrorCode *calculatorError);
+struct Parser
+{
+    char* str;
+    size_t curOffset;
+    CalculatorErrorCode calculatorError;
+};
+
+struct UnaryOperation
+{
+    const char* str;
+    size_t strSize;
+    double (*operation) (double);
+};
+
+double CalculateExpression(Parser *parser);
 
 #endif // CALCULATOR_H_
