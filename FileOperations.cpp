@@ -2,7 +2,7 @@
 #include <fstream>
 #include <assert.h>
 #include <string.h>
-#include "FileOperations.h"
+#include "./libs/FileOperations.h"
 
 int GetFileSize(FILE *finput)
 {
