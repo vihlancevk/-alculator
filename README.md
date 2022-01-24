@@ -1,11 +1,11 @@
 # Calculator
 ## Program description
 A simple calculator that currently supports the following set of operations:
-1) + (addition);  
-2) - (subtraction);  
-3) * (multiplication);  
-4) / (division);  
-5) ^ (exponentiation);  
+1) $+$ (addition);  
+2) $-$ (subtraction);  
+3) $*$ (multiplication);  
+4) $/$ (division);  
+5) $^$ (exponentiation);  
 6) sin (sine);  
 7) cos (cosine).  
 
