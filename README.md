@@ -1,13 +1,13 @@
 # Calculator
 ## Program description
 A simple calculator that currently supports the following set of operations:
-1) $+$ (addition);  
-2) $-$ (subtraction);  
-3) $*$ (multiplication);  
-4) $/$ (division);  
-5) $^$ (exponentiation);  
-6) sin (sine);  
-7) cos (cosine).  
+1) addition (+);  
+2) subtraction (-);  
+3) multiplication (*);  
+4) division (/);  
+5) exponentiation (^);  
+6) sine (sin);  
+7) cosine (cos).  
 
 New mathematical operations are easily added to this calculator (for example, taking the square root sqrt), since it is implemented using a recursive descent algorithm.  
 ## Using a calculator
