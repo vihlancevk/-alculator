@@ -1,7 +1,7 @@
 #include "./libs/Calculator.h"
 #include "./libs/FileOperations.h"
 
-const char *NAME_INPUT_FILE = "data.txt";
+const char *NAME_INPUT_FILE = "./res/data.txt";
 
 int main()
 {
