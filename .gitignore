@@ -1,5 +1,5 @@
-/bin
-/obj
-Calculator.cbp
-Calculator.depend
-Calculator.layout
+src/bin
+src/obj
+src/Calculator.cbp
+src/Calculator.depend
+src/Calculator.layout
