@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <math.h>
 #include <string.h>
-#include "./libs/Calculator.h"
+#include "../include/Calculator.h"
 
 #define IS_CALCULATOR_ERROR()                               \
     do                                                      \

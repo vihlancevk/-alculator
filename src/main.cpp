@@ -1,5 +1,5 @@
-#include "../libs/Calculator.h"
-#include "../libs/FileOperations.h"
+#include "../include/Calculator.h"
+#include "../include/FileOperations.h"
 
 const char *NAME_INPUT_FILE = "../res/data.txt";
 
